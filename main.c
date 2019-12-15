@@ -16,12 +16,6 @@ int min = 0;
 int hr = 12;
 //==============================================//
 
-/*Variables to keep track of time being set by user*/
-int tempSec=0;
-int tempMin =0;
-int tempHr =0;
-//=================================================//
-
 /*Variables to keep track of alarm times (both alarm 1 and 2)*/
 int alarmSec=0;
 int alarmMin =0;
@@ -29,7 +23,9 @@ int alarmHr =0;
 int alarmSec2=0;
 int alarmMin2 =0;
 int alarmHr2 =0;
-int alarmSet = 0;
+int temporaryHr = 0;
+int temporaryMin =0;
+int temporarySec =0;
 //==========================================================//
 
 int longPress = 0; //keeps track of how long a button has been pressed
@@ -40,6 +36,7 @@ unsigned char selection=1; //keeps track of which unit the user has selected to 
 char str[12]; //character buffer used to print integers to the lcd
 int displaySet = 0;
 int counter =0;
+int setCounter = 0;
 
 //function declarations//
 void displayMode();
@@ -80,44 +77,31 @@ int main(void){
 		if(mode==1){//Normal Mode
 			if(prevMode==1){
 				//Previous mode was set time mode, then set all time variables to user set variables
-				hr = tempHr;
-				min = tempMin;
-				sec = tempSec;
-				tempHr = 0;
-				tempMin = 0;
-				tempSec = 0;
+				hr = temporaryHr;
+				min = temporaryMin;
+				sec = temporarySec;
+				temporaryHr = 0;
+				temporaryMin = 0;
+				temporarySec = 0;
 				prevMode=0;
-			}else if(prevMode==2){
+			}
+			if(prevMode==2){
 				//Previous mode was set alarm 1 mode then set all alarm 1 variables to user set variables
 				prevMode=0;
-				alarmHr = tempHr;
-				alarmMin = tempMin;
-				alarmSec = tempSec;
 				EEPROM_write(19,alarmHr);
 				EEPROM_write(20,alarmMin);
 				EEPROM_write(21,alarmSec);
-				tempHr = 0;
-				tempMin = 0;
-				tempSec = 0;
-				alarmSet = 1;
 			}else if(prevMode==3){
 				//Previous mode was set alarm 2 mode then set all alarm 2 variables to user set variables
 				prevMode=0;
-				alarmHr2 = tempHr;
-				alarmMin2 = tempMin;
-				alarmSec2 = tempSec;
 				EEPROM_write(22,alarmHr2);
 				EEPROM_write(23,alarmMin2);
 				EEPROM_write(24,alarmSec2);
-				tempHr = 0;
-				tempMin = 0;
-				tempSec = 0;
-				alarmSet = 1;
 			}
 			selected=0; //reset selected to 0. So that the user may reselect a unit
 		}else if(mode==2){
 			//If mode is 2 then set time
-			setTime(hr,min,sec);
+			setTime(temporaryHr,temporaryMin,temporarySec);
 		}else if(mode==3){
 			//If mode is 3 then set alarm 1
 			setTime(alarmHr,alarmMin,alarmSec);
@@ -341,6 +325,9 @@ void placeArrow(int x){
 void checkValues(void){
 	if(mill>=1000){
 		sec++;
+		if(setCounter == 1){
+			counter++;
+		}
 		mill = 0;
 	}
 	if(sec >= 60){
@@ -357,14 +344,16 @@ void checkValues(void){
 }
 
 void displayLCD(int x){
-	if(x==1 || x==2){
+	if(x==1){
 		toDisplay(hr,min,sec);
+	}else if(x==2){
+		toDisplay(temporaryHr,temporaryMin,temporarySec);
 	}else if(x==3){
 		toDisplay(alarmHr,alarmMin,alarmSec);
 	}else if(x==4){
 		toDisplay(alarmHr2,alarmMin2,alarmSec2);
 	}
-	if(((hr==alarmHr && sec==alarmSec && min == alarmMin)||(hr==alarmHr2 && sec==alarmSec2 && min == alarmMin2)) && alarmSet==1){
+	if(((hr==alarmHr && sec==alarmSec && min == alarmMin)||(hr==alarmHr2 && sec==alarmSec2 && min == alarmMin2))){
 		alarmRoutine();
 	}
 	lcd_gotoxy(13,1);
@@ -380,12 +369,11 @@ void alarmRoutine(){
 	createSymbol();
 	lcd_gotoxy(14,1);
 	lcdData(0);
-	// alarmHr = 0;
-	// alarmSec=0;
-	// alarmMin=0;
-	// alarmSet=0;
 	PORTB |= (1 << PB0);
-	for(int i =0; i <60;i++){
+
+	setCounter = 1;
+	counter = 0;
+	while(counter<60){
 		if((PIND & (1<<PD3))==0){
 			break;
 		}
@@ -395,8 +383,9 @@ void alarmRoutine(){
 		if((PIND & (1<<PD2))==0){
 			break;
 		}
-		_delay_ms(1000);
 	}
+	setCounter = 0;
+	clear_lcd();
 	PORTB &= ~(1<<PB0);
 }
 
@@ -407,7 +396,7 @@ void toDisplay(int x, int y, int z){
 		lcd_print("0");
 		lcd_gotoxy(2,1);
 		lcd_print(str);
-		}else{
+	}else{
 		lcd_gotoxy(1,1);
 		lcd_print(str);
 	}
@@ -417,7 +406,7 @@ void toDisplay(int x, int y, int z){
 		lcd_print("0");
 		lcd_gotoxy(5,1);
 		lcd_print(str);
-		}else{
+	}else{
 		lcd_gotoxy(4,1);
 		lcd_print(str);
 	}
@@ -427,7 +416,7 @@ void toDisplay(int x, int y, int z){
 		lcd_print("0");
 		lcd_gotoxy(8,1);
 		lcd_print(str);
-		}else{
+	}else{
 		lcd_gotoxy(7,1);
 		lcd_print(str);
 	}
